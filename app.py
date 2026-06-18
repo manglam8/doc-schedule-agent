@@ -2,7 +2,10 @@
 Streamlit patient-facing chat UI.
 
 Run with:  streamlit run app.py
-Requires:  BACKEND_URL env var (default http://localhost:8000)
+BACKEND_URL is read from (in priority order):
+  1. st.secrets["BACKEND_URL"]  (Streamlit Cloud secrets)
+  2. BACKEND_URL environment variable
+  3. Default: http://localhost:8000
 """
 from __future__ import annotations
 
@@ -13,6 +16,9 @@ import streamlit as st
 from config import get_settings
 
 settings = get_settings()
+
+# Streamlit Cloud secrets override the env-var default
+_BACKEND_URL: str = st.secrets.get("BACKEND_URL", settings.backend_url)
 
 # ---------------------------------------------------------------------------
 # Page config
@@ -65,7 +71,7 @@ with st.sidebar:
         # Clear server-side history
         try:
             httpx.delete(
-                f"{settings.backend_url}/chat/{st.session_state.thread_id}",
+                f"{_BACKEND_URL}/chat/{st.session_state.thread_id}",
                 timeout=5,
             )
         except Exception:
@@ -101,7 +107,7 @@ if prompt := st.chat_input("Type your message…"):
         with st.spinner("CareBot is thinking…"):
             try:
                 resp = httpx.post(
-                    f"{settings.backend_url}/chat",
+                    f"{_BACKEND_URL}/chat",
                     json={
                         "user_id": st.session_state.user_id,
                         "thread_id": st.session_state.thread_id,
