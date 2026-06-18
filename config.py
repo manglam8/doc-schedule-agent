@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     backend_url: str = "http://localhost:8000"
 
     # LLM
-    llm_model: str = "gemini-2.5-flash-lite-preview-06-17"
+    llm_model: str = "gemini-2.5-flash-lite"
     llm_temperature: float = 0.0
     llm_max_tokens: int = 4096
 
