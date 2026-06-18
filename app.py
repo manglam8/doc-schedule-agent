@@ -104,8 +104,15 @@ if prompt := st.chat_input("Type your message…"):
 
     # Call the FastAPI backend
     with st.chat_message("assistant"):
-        with st.spinner("CareBot is thinking…"):
+        with st.spinner("CareBot is thinking… (first message may take ~30s to wake the server)"):
             try:
+                # Pre-warm: ping /health so Render cold-start latency doesn't eat
+                # into the LLM timeout. Fire-and-forget — ignore errors.
+                try:
+                    httpx.get(f"{_BACKEND_URL}/health", timeout=35)
+                except Exception:
+                    pass
+
                 resp = httpx.post(
                     f"{_BACKEND_URL}/chat",
                     json={
@@ -113,7 +120,7 @@ if prompt := st.chat_input("Type your message…"):
                         "thread_id": st.session_state.thread_id,
                         "message": prompt,
                     },
-                    timeout=60,
+                    timeout=120,  # agent makes 3-4 sequential LLM+tool calls
                 )
                 resp.raise_for_status()
                 data = resp.json()
@@ -127,8 +134,12 @@ if prompt := st.chat_input("Type your message…"):
             except httpx.ConnectError:
                 reply = (
                     "⚠️ I can't reach the scheduling server right now. "
-                    "Please make sure the API is running (`uvicorn main:app --reload`) "
-                    "and try again."
+                    "Please make sure the API is running and try again."
+                )
+            except httpx.ReadTimeout:
+                reply = (
+                    "⚠️ The server took too long to respond. "
+                    "The server may be starting up — please wait 30 seconds and try again."
                 )
             except httpx.HTTPStatusError as exc:
                 reply = f"⚠️ Server error ({exc.response.status_code}). Please try again."
